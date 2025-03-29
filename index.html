@@ -3,17 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Gerenciamento de Briefings</title>
+  <title>Controle de Briefings Aéreos</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <style>
-    .form-switch .form-check-input {
-      width: 3em; 
-      margin-left: -2.5em;
-    }
-    .btn-check + .btn {
-      position: relative; 
-      min-width: 2.5rem;
-    }
+    .form-switch .form-check-input { width: 3em; margin-left: -2.5em; }
+    .btn-check + .btn { position: relative; min-width: 2.5rem; }
     .btn-check:checked + .btn {
       background-color: #f8f9fa !important;
       border-color: #f8f9fa !important; 
@@ -26,220 +20,218 @@
       left: 0.5rem; 
       top: 0.3rem;
     }
-    .table-step-btn {
-      height: 3rem; 
-      flex-wrap: nowrap; 
-      margin-right: 0.25rem; 
-    }
-    .btn-group.flex-nowrap {
-      flex-wrap: nowrap !important;
-    }
+    .table-step-btn { height: 3rem; flex-wrap: nowrap; margin-right: 0.25rem; }
+    .btn-group.flex-nowrap { flex-wrap: nowrap !important; }
     .bg-step-0, .bg-step-0 td { background-color: #6c757d !important; color: #fff !important; }
     .bg-step-1, .bg-step-1 td { background-color: #ffc107 !important; color: #212529 !important; }
     .bg-step-2, .bg-step-2 td { background-color: #0d6efd !important; color: #fff !important; }
     .bg-step-3, .bg-step-3 td { background-color: #198754 !important; color: #fff !important; }
     
-    @keyframes blink {
-      0% { opacity: 1; }
-      50% { opacity: 0.3; }
-      100% { opacity: 1; }
-    }
-    .blink-alert {
-      animation: blink 1s infinite;
-      background-color: #dc3545 !important;
-    }
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    .blink-alert { animation: blink 1s infinite; background-color: #dc3545 !important; }
     .blink-alert td { background-color: #dc3545 !important; }
   </style>
 </head>
 <body class="bg-light">
 <div class="container mt-5">
-  <h2 class="mb-4">Briefings Agendados</h2>
+  <h2 class="mb-4">🛫 Controle de Briefings</h2>
   <div class="d-flex align-items-center mb-3">
     <div class="form-check form-switch me-3">
       <input class="form-check-input" type="checkbox" id="toggleView">
-      <label class="form-check-label" for="toggleView">Tabela</label>
+      <label class="form-check-label" for="toggleView">Modo Tabela</label>
     </div>
     <div class="form-check form-switch" id="toggleCompactContainer" style="display:none">
       <input class="form-check-input" type="checkbox" id="toggleCompact">
-      <label class="form-check-label" for="toggleCompact">Compacto</label>
+      <label class="form-check-label" for="toggleCompact">Modo Compacto</label>
     </div>
   </div>
   <div id="briefingArea"></div>
 </div>
 
 <script>
-const STEP_LABELS = ["Solicitado","Verificado Auxiliar","Verificado Previsor","Enviado"];
-const scheduledBriefings = [
+const ETAPAS = ["Solicitado","Verificado Auxiliar","Verificado Previsor","Enviado"];
+const briefings = [
   {
-    origem:"SBMO", rota:"SBMO -> SBRF", destino:"SBRF", nivelVoo:"280",
-    etd:"2025-04-02T13:50", eta:"2025-04-02T15:20", 
+    origem: "SBMO", rota: "SBMO -> SBRF", destino: "SBRF", nivelVoo: "280",
+    etd: "2025-04-02T13:50", eta: "2025-04-02T15:20", 
     horaEntrega: new Date(Date.now() + 300000).toISOString(),
-    tipoAeronave:"Asa Fixa",
-    observacoes:"⚠️ ALERTA: Previsão de tempestade!",
-    maxStep:2
+    tipoAeronave: "Asa Fixa",
+    observacoes: "⚠️ ALERTA: Turbulência esperada na rota!",
+    maxStep: 2
   },
   {
-    origem:"SBPS", rota:"SBPS -> SBSV", destino:"SBSV", nivelVoo:"220",
-    etd:"2025-03-30T09:00", eta:"2025-03-30T10:10", 
-    horaEntrega:"2025-03-29T18:00",
-    tipoAeronave:"Asa Fixa",
-    observacoes:"Condições de teto e visibilidade na serra.",
-    maxStep:0
+    origem: "SBGR", rota: "SBGR -> SBFL", destino: "SBFL", nivelVoo: "320",
+    etd: "2025-04-03T08:00", eta: "2025-04-03T09:30", 
+    horaEntrega: "2025-04-02T22:00",
+    tipoAeronave: "Jato Executivo",
+    observacoes: "Verificar condições de pista no destino",
+    maxStep: 1
   },
   {
-    origem:"SBKP", rota:"SBKP -> SBBR", destino:"SBBR", nivelVoo:"350",
-    etd:"2025-04-01T06:30", eta:"2025-04-01T08:15", 
-    horaEntrega:"2025-03-31T22:30",
-    tipoAeronave:"Asa Móvel",
-    observacoes:"Informar variação de vento cruzado em rota.",
-    maxStep:1
-  },
-  {
-    origem:"SBGL", rota:"SBGL -> SBNF", destino:"SBNF", nivelVoo:"320",
-    etd:"2025-04-05T07:00", eta:"2025-04-05T08:40", 
-    horaEntrega:"2025-04-04T21:00",
-    tipoAeronave:"Asa Móvel",
-    observacoes:"Possível névoa matinal. Necessito de detalhes de RVR.",
-    maxStep:3
+    origem: "SBSP", rota: "SBSP -> SBCF", destino: "SBCF", nivelVoo: "250",
+    etd: "2025-04-04T14:20", eta: "2025-04-04T16:00", 
+    horaEntrega: new Date(Date.now() + 7200000).toISOString(),
+    tipoAeronave: "Helicóptero",
+    observacoes: "Área de pouso não pavimentada",
+    maxStep: 0
   }
 ];
 
-let tableView = false, compactMode = false;
+let modoTabela = false, modoCompacto = false;
 
-function ordenarBriefings() {
-  return [...scheduledBriefings].sort((a, b) => {
-    return new Date(a.horaEntrega) - new Date(b.horaEntrega);
-  });
+// ========== CORE FUNCTIONS ========== //
+function ordenarPorUrgencia() {
+  return [...briefings].sort((a, b) => 
+    new Date(a.horaEntrega) - new Date(b.horaEntrega)
+  );
 }
 
-function verificarAlerta(b) {
-  if(b.maxStep >= 3) return false;
+function deveAlertar(briefing) {
+  if(briefing.maxStep >= 3) return false;
   const agora = new Date();
-  const prazo = new Date(b.horaEntrega);
+  const prazo = new Date(briefing.horaEntrega);
   return prazo - agora <= 600000 && prazo > agora;
 }
 
-function classeDeFundo(passo){
-  return `bg-step-${passo}`;
-}
-
-function obterEtapa(i){ return STEP_LABELS[i] || "?"; }
-
-function alterarEtapa(idx, i){
-  let atual = scheduledBriefings[idx].maxStep;
-  scheduledBriefings[idx].maxStep = i > atual ? i : Math.max(0, i-1);
-  renderizar();
-}
-
-function renderizarBotoes(idx, etapaMax, tabela){
+// ========== RENDER ENGINE ========== //
+function criarBotaoEtapa(idx, etapaAtual, isTabela) {
   const grupo = document.createElement("div");
-  grupo.role = "group";
-  grupo.className = tabela ? "btn-group flex-nowrap" : "btn-group d-flex flex-wrap";
+  grupo.className = isTabela ? "btn-group flex-nowrap" : "btn-group d-flex flex-wrap";
   
-  STEP_LABELS.forEach((rotulo, i) => {
+  ETAPAS.forEach((etapa, i) => {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.className = "btn-check";
-    input.id = `btn-${idx}-${i}`;
-    input.checked = (i <= etapaMax);
-    input.onchange = () => alterarEtapa(idx, i);
+    input.checked = (i <= etapaAtual);
+    input.onchange = () => atualizarEtapa(idx, i);
 
     const label = document.createElement("label");
-    label.className = `btn btn-secondary me-1 ${tabela ? "table-step-btn" : ""}`;
-    label.title = tabela ? rotulo : "";
-    label.textContent = tabela ? "" : rotulo;
-    label.htmlFor = input.id;
+    label.className = `btn btn-secondary ${isTabela ? "table-step-btn" : "mb-1"}`;
+    label.textContent = isTabela ? "" : etapa;
+    label.title = etapa;
+    label.htmlFor = input.id = `etapa-${idx}-${i}`;
 
     grupo.append(input, label);
   });
   return grupo;
 }
 
-function renderizarCards(container){
-  const linha = document.createElement("div");
-  linha.className = "row";
+function renderCards() {
+  const container = document.getElementById("briefingArea");
+  container.innerHTML = "";
   
-  ordenarBriefings().forEach((b, idx) => {
-    const coluna = document.createElement("div");
-    coluna.className = "col-sm-12 col-md-6 col-lg-4 mb-3";
-
+  const grid = document.createElement("div");
+  grid.className = "row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4";
+  
+  ordenarPorUrgencia().forEach((b, idx) => {
     const card = document.createElement("div");
-    card.className = `card h-100 ${classeDeFundo(b.maxStep)} ${verificarAlerta(b) ? "blink-alert" : ""}`;
-
-    const corpo = document.createElement("div");
-    corpo.className = "card-body";
-    corpo.innerHTML = `
-      <h4 class="card-title fw-bold text-uppercase mb-3">${b.origem} → ${b.destino}</h4>
-      ${!compactMode ? `
-        <h6 class="card-subtitle mb-2">Rota: ${b.rota}</h6>
-        <p>Nível: FL${b.nivelVoo}</p>
-        <p>Tipo: ${b.tipoAeronave}</p>
-        <p>ETD: ${new Date(b.etd).toLocaleString()}</p>
-        <p>ETA: ${new Date(b.eta).toLocaleString()}</p>
-      ` : ""}
-      <p>Entrega: ${new Date(b.horaEntrega).toLocaleString()}</p>
-      <p>Obs: ${b.observacoes}</p>
-      <p><strong>Passo:</strong> ${obterEtapa(b.maxStep)}</p>
-    `;
+    card.className = `card h-100 bg-step-${b.maxStep} ${deveAlertar(b) ? "blink-alert" : ""}`;
     
-    if(!compactMode) {
-      corpo.append(renderizarBotoes(idx, b.maxStep, false));
+    card.innerHTML = `
+      <div class="card-body">
+        <h5 class="card-title">${b.origem} → ${b.destino}</h5>
+        ${!modoCompacto ? `
+          <h6 class="card-subtitle mb-2 text-muted">${b.rota}</h6>
+          <p class="card-text">
+            <b>Nível:</b> FL${b.nivelVoo}<br>
+            <b>Tipo:</b> ${b.tipoAeronave}<br>
+            <b>ETD:</b> ${new Date(b.etd).toLocaleString()}<br>
+            <b>ETA:</b> ${new Date(b.eta).toLocaleString()}
+          </p>
+        ` : ""}
+        <p class="card-text ${modoCompacto ? "small" : ""}">
+          <b>Entrega:</b> ${new Date(b.horaEntrega).toLocaleString()}<br>
+          <b>Status:</b> ${ETAPAS[b.maxStep]}<br>
+          <b>Observações:</b> ${b.observacoes}
+        </p>
+        ${!modoCompacto ? "<div class='controles'></div>" : ""}
+      </div>
+    `;
+
+    if(!modoCompacto) {
+      card.querySelector(".controles").append(criarBotaoEtapa(idx, b.maxStep, false));
     }
     
-    card.append(corpo);
-    coluna.append(card);
-    linha.append(coluna);
+    grid.append(card);
   });
-  container.append(linha);
+  
+  container.append(grid);
 }
 
-function renderizarTabela(container){
+function renderTabela() {
+  const container = document.getElementById("briefingArea");
+  container.innerHTML = "";
+  
   const tabela = document.createElement("table");
-  tabela.className = "table table-bordered";
-  tabela.innerHTML = `
-    <thead>
-      <tr>
-        <th>Origem</th><th>Rota</th><th>Destino</th><th>Nível</th>
-        <th>ETD</th><th>ETA</th><th>Entrega</th><th>Aeronave</th>
-        <th>Obs</th><th>Passo</th><th>Ações</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${ordenarBriefings().map((b, idx) => `
-        <tr class="${classeDeFundo(b.maxStep)} ${verificarAlerta(b) ? "blink-alert" : ""}">
-          <td>${b.origem}</td><td>${b.rota}</td><td>${b.destino}</td>
-          <td>FL${b.nivelVoo}</td><td>${new Date(b.etd).toLocaleString()}</td>
-          <td>${new Date(b.eta).toLocaleString()}</td>
-          <td>${new Date(b.horaEntrega).toLocaleString()}</td>
-          <td>${b.tipoAeronave}</td><td>${b.observacoes}</td>
-          <td>${obterEtapa(b.maxStep)}</td>
-          <td>${renderizarBotoes(idx, b.maxStep, true).outerHTML}</td>
-        </tr>
-      `).join("")}
-    </tbody>
+  tabela.className = "table table-hover align-middle";
+  
+  // Cabeçalho
+  const thead = document.createElement("thead");
+  thead.innerHTML = `
+    <tr class="table-dark">
+      <th>Origem</th>
+      <th>Destino</th>
+      <th>ETD</th>
+      <th>Entrega</th>
+      <th>Status</th>
+      <th class="text-end">Ações</th>
+    </tr>
   `;
+  
+  // Corpo
+  const tbody = document.createElement("tbody");
+  ordenarPorUrgencia().forEach((b, idx) => {
+    const tr = document.createElement("tr");
+    tr.className = `bg-step-${b.maxStep} ${deveAlertar(b) ? "blink-alert" : ""}`;
+    
+    tr.innerHTML = `
+      <td>${b.origem}</td>
+      <td>${b.destino}</td>
+      <td>${new Date(b.etd).toLocaleTimeString()}</td>
+      <td>${new Date(b.horaEntrega).toLocaleString()}</td>
+      <td>${ETAPAS[b.maxStep]}</td>
+    `;
+    
+    const tdAcoes = document.createElement("td");
+    tdAcoes.className = "text-end";
+    tdAcoes.append(criarBotaoEtapa(idx, b.maxStep, true));
+    tr.append(tdAcoes);
+    
+    tbody.append(tr);
+  });
+
+  tabela.append(thead, tbody);
   container.append(tabela);
 }
 
-function renderizar(){
-  const container = document.getElementById("briefingArea");
-  container.innerHTML = "";
-  document.getElementById("toggleCompactContainer").style.display = tableView ? "none" : "block";
-  tableView ? renderizarTabela(container) : renderizarCards(container);
+// ========== CONTROLE ========== //
+function atualizarEtapa(idx, novaEtapa) {
+  briefings[idx].maxStep = novaEtapa > briefings[idx].maxStep 
+    ? novaEtapa 
+    : Math.max(0, novaEtapa - 1);
+  render();
 }
 
+function render() {
+  document.getElementById("toggleCompactContainer").style.display = 
+    modoTabela ? "none" : "block";
+  
+  modoTabela ? renderTabela() : renderCards();
+}
+
+// ========== INIT ========== //
 document.getElementById("toggleView").addEventListener("change", e => {
-  tableView = e.target.checked;
-  renderizar();
+  modoTabela = e.target.checked;
+  render();
 });
 
 document.getElementById("toggleCompact").addEventListener("change", e => {
-  compactMode = e.target.checked;
-  renderizar();
+  modoCompacto = e.target.checked;
+  render();
 });
 
-setInterval(renderizar, 10000);
-renderizar();
+setInterval(render, 10000);
+render();
 </script>
 </body>
 </html>
