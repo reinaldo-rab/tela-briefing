@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Briefings - Tabela/Cards</title>
+  <title>Gerenciamento de Briefings</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <style>
     .form-switch .form-check-input {
@@ -73,7 +73,7 @@ const scheduledBriefings = [
   {
     origem:"SBMO", rota:"SBMO -> SBRF", destino:"SBRF", nivelVoo:"280",
     etd:"2025-04-02T13:50", eta:"2025-04-02T15:20", 
-    horaEntrega: new Date(Date.now() + 300000).toISOString(), // 5 minutos
+    horaEntrega: new Date(Date.now() + 300000).toISOString(),
     tipoAeronave:"Asa Fixa",
     observacoes:"⚠️ ALERTA: Previsão de tempestade!",
     maxStep:2
@@ -106,69 +106,69 @@ const scheduledBriefings = [
 
 let tableView = false, compactMode = false;
 
-function sortBriefings() {
+function ordenarBriefings() {
   return [...scheduledBriefings].sort((a, b) => {
     return new Date(a.horaEntrega) - new Date(b.horaEntrega);
   });
 }
 
-function checkAlertCondition(b) {
+function verificarAlerta(b) {
   if(b.maxStep >= 3) return false;
-  const now = new Date();
-  const deadline = new Date(b.horaEntrega);
-  return deadline - now <= 600000 && deadline > now;
+  const agora = new Date();
+  const prazo = new Date(b.horaEntrega);
+  return prazo - agora <= 600000 && prazo > agora;
 }
 
-function rowOrCardBgClass(m){
-  return `bg-step-${m}`;
+function classeDeFundo(passo){
+  return `bg-step-${passo}`;
 }
 
-function getStepLabel(i){ return STEP_LABELS[i] || "?"; }
+function obterEtapa(i){ return STEP_LABELS[i] || "?"; }
 
-function toggleStep(idx,i){
-  let c = scheduledBriefings[idx].maxStep;
-  scheduledBriefings[idx].maxStep = i > c ? i : Math.max(0, i-1);
-  renderView();
+function alterarEtapa(idx, i){
+  let atual = scheduledBriefings[idx].maxStep;
+  scheduledBriefings[idx].maxStep = i > atual ? i : Math.max(0, i-1);
+  renderizar();
 }
 
-function renderStepButtons(idx, maxS, isTable){
-  const g = document.createElement("div");
-  g.role = "group";
-  g.className = isTable ? "btn-group flex-nowrap" : "btn-group d-flex flex-wrap";
+function renderizarBotoes(idx, etapaMax, tabela){
+  const grupo = document.createElement("div");
+  grupo.role = "group";
+  grupo.className = tabela ? "btn-group flex-nowrap" : "btn-group d-flex flex-wrap";
   
-  STEP_LABELS.forEach((label, i) => {
-    const inp = document.createElement("input");
-    inp.type = "checkbox";
-    inp.className = "btn-check";
-    inp.id = `btn-${idx}-${i}`;
-    inp.checked = (i <= maxS);
-    inp.onchange = () => toggleStep(idx, i);
+  STEP_LABELS.forEach((rotulo, i) => {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.className = "btn-check";
+    input.id = `btn-${idx}-${i}`;
+    input.checked = (i <= etapaMax);
+    input.onchange = () => alterarEtapa(idx, i);
 
-    const lbl = document.createElement("label");
-    lbl.className = `btn btn-secondary me-1 ${isTable ? "table-step-btn" : ""}`;
-    lbl.title = isTable ? label : "";
-    lbl.textContent = isTable ? "" : label;
-    lbl.htmlFor = inp.id;
+    const label = document.createElement("label");
+    label.className = `btn btn-secondary me-1 ${tabela ? "table-step-btn" : ""}`;
+    label.title = tabela ? rotulo : "";
+    label.textContent = tabela ? "" : rotulo;
+    label.htmlFor = input.id;
 
-    g.append(inp, lbl);
+    grupo.append(input, label);
   });
-  return g;
+  return grupo;
 }
 
-function renderCards(container){
-  const row = document.createElement("div");
-  row.className = "row";
+function renderizarCards(container){
+  const linha = document.createElement("div");
+  linha.className = "row";
   
-  sortBriefings().forEach((b, idx) => {
-    const col = document.createElement("div");
-    col.className = "col-sm-12 col-md-6 col-lg-4 mb-3";
+  ordenarBriefings().forEach((b, idx) => {
+    const coluna = document.createElement("div");
+    coluna.className = "col-sm-12 col-md-6 col-lg-4 mb-3";
 
     const card = document.createElement("div");
-    card.className = `card h-100 ${rowOrCardBgClass(b.maxStep)} ${checkAlertCondition(b) ? "blink-alert" : ""}`;
+    card.className = `card h-100 ${classeDeFundo(b.maxStep)} ${verificarAlerta(b) ? "blink-alert" : ""}`;
 
-    const body = document.createElement("div");
-    body.className = "card-body";
-    body.innerHTML = `
+    const corpo = document.createElement("div");
+    corpo.className = "card-body";
+    corpo.innerHTML = `
       <h4 class="card-title fw-bold text-uppercase mb-3">${b.origem} → ${b.destino}</h4>
       ${!compactMode ? `
         <h6 class="card-subtitle mb-2">Rota: ${b.rota}</h6>
@@ -176,24 +176,27 @@ function renderCards(container){
         <p>Tipo: ${b.tipoAeronave}</p>
         <p>ETD: ${new Date(b.etd).toLocaleString()}</p>
         <p>ETA: ${new Date(b.eta).toLocaleString()}</p>
-        <p>Entrega: ${new Date(b.horaEntrega).toLocaleString()}</p>
       ` : ""}
+      <p>Entrega: ${new Date(b.horaEntrega).toLocaleString()}</p>
       <p>Obs: ${b.observacoes}</p>
-      <p><strong>Passo:</strong> ${getStepLabel(b.maxStep)}</p>
+      <p><strong>Passo:</strong> ${obterEtapa(b.maxStep)}</p>
     `;
     
-    body.append(renderStepButtons(idx, b.maxStep, false));
-    card.append(body);
-    col.append(card);
-    row.append(col);
+    if(!compactMode) {
+      corpo.append(renderizarBotoes(idx, b.maxStep, false));
+    }
+    
+    card.append(corpo);
+    coluna.append(card);
+    linha.append(coluna);
   });
-  container.append(row);
+  container.append(linha);
 }
 
-function renderTable(container){
-  const tbl = document.createElement("table");
-  tbl.className = "table table-bordered";
-  tbl.innerHTML = `
+function renderizarTabela(container){
+  const tabela = document.createElement("table");
+  tabela.className = "table table-bordered";
+  tabela.innerHTML = `
     <thead>
       <tr>
         <th>Origem</th><th>Rota</th><th>Destino</th><th>Nível</th>
@@ -202,41 +205,41 @@ function renderTable(container){
       </tr>
     </thead>
     <tbody>
-      ${sortBriefings().map((b, idx) => `
-        <tr class="${rowOrCardBgClass(b.maxStep)} ${checkAlertCondition(b) ? "blink-alert" : ""}">
+      ${ordenarBriefings().map((b, idx) => `
+        <tr class="${classeDeFundo(b.maxStep)} ${verificarAlerta(b) ? "blink-alert" : ""}">
           <td>${b.origem}</td><td>${b.rota}</td><td>${b.destino}</td>
           <td>FL${b.nivelVoo}</td><td>${new Date(b.etd).toLocaleString()}</td>
           <td>${new Date(b.eta).toLocaleString()}</td>
           <td>${new Date(b.horaEntrega).toLocaleString()}</td>
           <td>${b.tipoAeronave}</td><td>${b.observacoes}</td>
-          <td>${getStepLabel(b.maxStep)}</td>
-          <td>${renderStepButtons(idx, b.maxStep, true).outerHTML}</td>
+          <td>${obterEtapa(b.maxStep)}</td>
+          <td>${renderizarBotoes(idx, b.maxStep, true).outerHTML}</td>
         </tr>
       `).join("")}
     </tbody>
   `;
-  container.append(tbl);
+  container.append(tabela);
 }
 
-function renderView(){
+function renderizar(){
   const container = document.getElementById("briefingArea");
   container.innerHTML = "";
   document.getElementById("toggleCompactContainer").style.display = tableView ? "none" : "block";
-  tableView ? renderTable(container) : renderCards(container);
+  tableView ? renderizarTabela(container) : renderizarCards(container);
 }
 
 document.getElementById("toggleView").addEventListener("change", e => {
   tableView = e.target.checked;
-  renderView();
+  renderizar();
 });
 
 document.getElementById("toggleCompact").addEventListener("change", e => {
   compactMode = e.target.checked;
-  renderView();
+  renderizar();
 });
 
-setInterval(renderView, 10000);
-renderView();
+setInterval(renderizar, 10000);
+renderizar();
 </script>
 </body>
 </html>
