@@ -30,6 +30,7 @@
     @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     .blink-alert { animation: blink 1s infinite; background-color: #dc3545 !important; }
     .blink-alert td { background-color: #dc3545 !important; }
+    .cursor-pointer { cursor: pointer; }
   </style>
 </head>
 <body class="bg-light">
@@ -52,6 +53,7 @@
 const ETAPAS = ["Solicitado","Verificado Auxiliar","Verificado Previsor","Enviado"];
 const briefings = [
   {
+    id: 1,
     origem: "SBMO", rota: "SBMO -> SBRF", destino: "SBRF", nivelVoo: "280",
     etd: "2025-04-02T13:50", eta: "2025-04-02T15:20", 
     horaEntrega: new Date(Date.now() + 300000).toISOString(),
@@ -60,6 +62,7 @@ const briefings = [
     maxStep: 2
   },
   {
+    id: 2,
     origem: "SBGR", rota: "SBGR -> SBFL", destino: "SBFL", nivelVoo: "320",
     etd: "2025-04-03T08:00", eta: "2025-04-03T09:30", 
     horaEntrega: "2025-04-02T22:00",
@@ -68,18 +71,28 @@ const briefings = [
     maxStep: 1
   },
   {
+    id: 3,
     origem: "SBSP", rota: "SBSP -> SBCF", destino: "SBCF", nivelVoo: "250",
     etd: "2025-04-04T14:20", eta: "2025-04-04T16:00", 
     horaEntrega: new Date(Date.now() + 7200000).toISOString(),
     tipoAeronave: "Helicóptero",
     observacoes: "Área de pouso não pavimentada",
     maxStep: 0
+  },
+  {
+    id: 4,
+    origem: "SBRJ", rota: "SBRJ -> SBPA", destino: "SBPA", nivelVoo: "300",
+    etd: "2025-04-05T10:00", eta: "2025-04-05T12:30", 
+    horaEntrega: "2025-04-04T23:00",
+    tipoAeronave: "Não Informado",
+    observacoes: "Tipo de aeronave a confirmar",
+    maxStep: 1
   }
 ];
 
 let modoTabela = false, modoCompacto = false;
 
-// ========== CORE FUNCTIONS ========== //
+// ========== FUNÇÕES PRINCIPAIS ========== //
 function ordenarPorUrgencia() {
   return [...briefings].sort((a, b) => 
     new Date(a.horaEntrega) - new Date(b.horaEntrega)
@@ -93,23 +106,28 @@ function deveAlertar(briefing) {
   return prazo - agora <= 600000 && prazo > agora;
 }
 
-// ========== RENDER ENGINE ========== //
-function criarBotaoEtapa(idx, etapaAtual, isTabela) {
+// ========== RENDERIZAÇÃO ========== //
+function criarBotaoEtapa(briefingId, etapaAtual, isTabela) {
   const grupo = document.createElement("div");
   grupo.className = isTabela ? "btn-group flex-nowrap" : "btn-group d-flex flex-wrap";
   
   ETAPAS.forEach((etapa, i) => {
+    const btnId = `etapa-${briefingId}-${i}`;
+    
     const input = document.createElement("input");
     input.type = "checkbox";
     input.className = "btn-check";
+    input.id = btnId;
     input.checked = (i <= etapaAtual);
-    input.onchange = () => atualizarEtapa(idx, i);
+    input.dataset.briefingId = briefingId;
+    input.dataset.etapa = i;
+    input.onchange = atualizarEtapa;
 
     const label = document.createElement("label");
     label.className = `btn btn-secondary ${isTabela ? "table-step-btn" : "mb-1"}`;
     label.textContent = isTabela ? "" : etapa;
     label.title = etapa;
-    label.htmlFor = input.id = `etapa-${idx}-${i}`;
+    label.htmlFor = btnId;
 
     grupo.append(input, label);
   });
@@ -123,7 +141,7 @@ function renderCards() {
   const grid = document.createElement("div");
   grid.className = "row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4";
   
-  ordenarPorUrgencia().forEach((b, idx) => {
+  ordenarPorUrgencia().forEach(b => {
     const card = document.createElement("div");
     card.className = `card h-100 bg-step-${b.maxStep} ${deveAlertar(b) ? "blink-alert" : ""}`;
     
@@ -149,7 +167,7 @@ function renderCards() {
     `;
 
     if(!modoCompacto) {
-      card.querySelector(".controles").append(criarBotaoEtapa(idx, b.maxStep, false));
+      card.querySelector(".controles").append(criarBotaoEtapa(b.id, b.maxStep, false));
     }
     
     grid.append(card);
@@ -171,6 +189,7 @@ function renderTabela() {
     <tr class="table-dark">
       <th>Origem</th>
       <th>Destino</th>
+      <th>Tipo Aeronave</th>
       <th>ETD</th>
       <th>Entrega</th>
       <th>Status</th>
@@ -180,13 +199,14 @@ function renderTabela() {
   
   // Corpo
   const tbody = document.createElement("tbody");
-  ordenarPorUrgencia().forEach((b, idx) => {
+  ordenarPorUrgencia().forEach(b => {
     const tr = document.createElement("tr");
     tr.className = `bg-step-${b.maxStep} ${deveAlertar(b) ? "blink-alert" : ""}`;
     
     tr.innerHTML = `
       <td>${b.origem}</td>
       <td>${b.destino}</td>
+      <td>${b.tipoAeronave}</td>
       <td>${new Date(b.etd).toLocaleTimeString()}</td>
       <td>${new Date(b.horaEntrega).toLocaleString()}</td>
       <td>${ETAPAS[b.maxStep]}</td>
@@ -194,7 +214,7 @@ function renderTabela() {
     
     const tdAcoes = document.createElement("td");
     tdAcoes.className = "text-end";
-    tdAcoes.append(criarBotaoEtapa(idx, b.maxStep, true));
+    tdAcoes.append(criarBotaoEtapa(b.id, b.maxStep, true));
     tr.append(tdAcoes);
     
     tbody.append(tr);
@@ -204,11 +224,19 @@ function renderTabela() {
   container.append(tabela);
 }
 
-// ========== CONTROLE ========== //
-function atualizarEtapa(idx, novaEtapa) {
-  briefings[idx].maxStep = novaEtapa > briefings[idx].maxStep 
-    ? novaEtapa 
-    : Math.max(0, novaEtapa - 1);
+// ========== ATUALIZAÇÃO ========== //
+function atualizarEtapa(event) {
+  const briefingId = parseInt(event.target.dataset.briefingId);
+  const novaEtapa = parseInt(event.target.dataset.etapa);
+  
+  const briefing = briefings.find(b => b.id === briefingId);
+  
+  if(novaEtapa > briefing.maxStep) {
+    briefing.maxStep = novaEtapa;
+  } else {
+    briefing.maxStep = Math.max(0, novaEtapa - 1);
+  }
+  
   render();
 }
 
@@ -219,7 +247,7 @@ function render() {
   modoTabela ? renderTabela() : renderCards();
 }
 
-// ========== INIT ========== //
+// ========== EVENTOS ========== //
 document.getElementById("toggleView").addEventListener("change", e => {
   modoTabela = e.target.checked;
   render();
