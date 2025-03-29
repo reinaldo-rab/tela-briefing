@@ -6,18 +6,16 @@
   <title>Briefings - Tabela/Cards</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <style>
-    /* Switch minimal style */
     .form-switch .form-check-input {
       width: 3em; 
       margin-left: -2.5em;
     }
-    /* Botões prateados (btn-secondary) e branco (btn-light) quando selecionados */
     .btn-check + .btn {
       position: relative; 
       min-width: 2.5rem;
     }
     .btn-check:checked + .btn {
-      background-color: #f8f9fa !important; /* .btn-light */
+      background-color: #f8f9fa !important;
       border-color: #f8f9fa !important; 
       color: #212529 !important; 
     }
@@ -36,51 +34,21 @@
     .btn-group.flex-nowrap {
       flex-wrap: nowrap !important;
     }
-    /* 
-      Classes FORÇANDO a cor de fundo
-      para cada estado, igual ao Card:
-        0 => cinza
-        1 => amarelo
-        2 => azul
-        3 => verde
-      Com !important, não será sobrescrito.
-    */
-    .bg-step-0 {
-      background-color: #6c757d !important; /* ~ bg-secondary */
-      color: #fff !important;
+    .bg-step-0, .bg-step-0 td { background-color: #6c757d !important; color: #fff !important; }
+    .bg-step-1, .bg-step-1 td { background-color: #ffc107 !important; color: #212529 !important; }
+    .bg-step-2, .bg-step-2 td { background-color: #0d6efd !important; color: #fff !important; }
+    .bg-step-3, .bg-step-3 td { background-color: #198754 !important; color: #fff !important; }
+    
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0.3; }
+      100% { opacity: 1; }
     }
-    .bg-step-1 {
-      background-color: #ffc107 !important; /* ~ bg-warning */
-      color: #212529 !important;
+    .blink-alert {
+      animation: blink 1s infinite;
+      background-color: #dc3545 !important;
     }
-    .bg-step-2 {
-      background-color: #0d6efd !important; /* ~ bg-primary */
-      color: #fff !important;
-    }
-    .bg-step-3 {
-      background-color: #198754 !important; /* ~ bg-success */
-      color: #fff !important;
-    }
-    /* Adicione isto ao seu CSS */
-.bg-step-0, 
-.bg-step-0 td {
-  background-color: #6c757d !important;
-}
-.bg-step-1, 
-.bg-step-1 td {
-  background-color: #ffc107 !important;
-}
-.bg-step-2, 
-.bg-step-2 td {
-  background-color: #0d6efd !important;
-}
-.bg-step-3, 
-.bg-step-3 td {
-  background-color: #198754 !important;
-}
-        .card .btn-group .btn {
-      margin: 3px 0;
-    }
+    .blink-alert td { background-color: #dc3545 !important; }
   </style>
 </head>
 <body class="bg-light">
@@ -118,7 +86,7 @@ const scheduledBriefings = [
   },
   {
     origem:"SBMO", rota:"SBMO -> SBRF", destino:"SBRF", nivelVoo:"280",
-    etd:"2025-04-02T13:50", eta:"2025-04-02T15:20", horaEntrega:"2025-04-01T23:00",
+    etd:"2025-04-02T13:50", eta:"2025-04-02T15:20", horaEntrega: new Date(Date.now() + 300000).toISOString(), // 5 minutos
     tipoAeronave:"Asa Fixa",
     observacoes:"Favor verificar formação de CB próximo à costa.",
     maxStep:2
@@ -134,7 +102,14 @@ const scheduledBriefings = [
 
 let tableView = false, compactMode = false;
 
-/* Em vez de classes Bootstrap, usamos as classes .bg-step-* acima */
+function checkAlertCondition(b) {
+  if(b.maxStep >= 3) return false; // Já enviado
+  const now = new Date();
+  const deadline = new Date(b.horaEntrega);
+  const diff = deadline - now;
+  return diff <= 600000 && diff > 0; // 10 minutos ou menos
+}
+
 function rowOrCardBgClass(m){
   switch(m){
     case 0: return "bg-step-0";
@@ -173,7 +148,7 @@ function renderStepButtons(idx, maxS, isTable){
     if(isTable){
       lbl.classList.add("table-step-btn");
       lbl.title = STEP_LABELS[i];
-      lbl.textContent = ""; // texto vazio na tabela
+      lbl.textContent = "";
     } else {
       lbl.textContent = STEP_LABELS[i];
     }
@@ -193,8 +168,9 @@ function renderCards(container){
     col.className = "col-sm-12 col-md-6 col-lg-4 mb-3";
 
     const card = document.createElement("div");
-    /* Aplica .bg-step-* no card */
-    card.className = `card h-100 ${rowOrCardBgClass(b.maxStep)}`;
+    let cardClass = `card h-100 ${rowOrCardBgClass(b.maxStep)}`;
+    if(checkAlertCondition(b)) cardClass += " blink-alert";
+    card.className = cardClass;
 
     const cb = document.createElement("div");
     cb.className = "card-body";
@@ -227,7 +203,7 @@ function renderCards(container){
       cb.appendChild(e2);
 
       const en = document.createElement("p");
-      en.textContent = `Entrega: ${b.horaEntrega.replace("T"," ")}Z`;
+      en.textContent = `Entrega: ${new Date(b.horaEntrega).toLocaleString()}`;
       cb.appendChild(en);
     }
     const o = document.createElement("p");
@@ -268,8 +244,9 @@ function renderTable(container){
 
   scheduledBriefings.forEach((b, idx)=>{
     const tr = document.createElement("tr");
-    /* Aplica a mesma cor de fundo do card */
-    tr.className = rowOrCardBgClass(b.maxStep);
+    let trClass = rowOrCardBgClass(b.maxStep);
+    if(checkAlertCondition(b)) trClass += " blink-alert";
+    tr.className = trClass;
 
     const tdO = document.createElement("td");
     tdO.textContent = b.origem;
@@ -296,7 +273,7 @@ function renderTable(container){
     tr.appendChild(tdE2);
 
     const tdEn = document.createElement("td");
-    tdEn.textContent = `${b.horaEntrega.replace("T"," ")}Z`;
+    tdEn.textContent = `${new Date(b.horaEntrega).toLocaleString()}`;
     tr.appendChild(tdEn);
 
     const tdT = document.createElement("td");
@@ -343,6 +320,8 @@ toggleCompact.addEventListener("change",()=>{
   renderView();
 });
 
+// Atualiza a cada 10 segundos para verificar prazos
+setInterval(renderView, 10000);
 renderView();
 </script>
 </body>
