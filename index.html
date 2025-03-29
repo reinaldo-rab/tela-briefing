@@ -71,29 +71,33 @@
 const STEP_LABELS = ["Solicitado","Verificado Auxiliar","Verificado Previsor","Enviado"];
 const scheduledBriefings = [
   {
+    origem:"SBMO", rota:"SBMO -> SBRF", destino:"SBRF", nivelVoo:"280",
+    etd:"2025-04-02T13:50", eta:"2025-04-02T15:20", 
+    horaEntrega: new Date(Date.now() + 300000).toISOString(), // 5 minutos
+    tipoAeronave:"Asa Fixa",
+    observacoes:"⚠️ ALERTA: Previsão de tempestade!",
+    maxStep:2
+  },
+  {
     origem:"SBPS", rota:"SBPS -> SBSV", destino:"SBSV", nivelVoo:"220",
-    etd:"2025-03-30T09:00", eta:"2025-03-30T10:10", horaEntrega:"2025-03-29T18:00",
+    etd:"2025-03-30T09:00", eta:"2025-03-30T10:10", 
+    horaEntrega:"2025-03-29T18:00",
     tipoAeronave:"Asa Fixa",
     observacoes:"Condições de teto e visibilidade na serra.",
     maxStep:0
   },
   {
     origem:"SBKP", rota:"SBKP -> SBBR", destino:"SBBR", nivelVoo:"350",
-    etd:"2025-04-01T06:30", eta:"2025-04-01T08:15", horaEntrega:"2025-03-31T22:30",
+    etd:"2025-04-01T06:30", eta:"2025-04-01T08:15", 
+    horaEntrega:"2025-03-31T22:30",
     tipoAeronave:"Asa Móvel",
     observacoes:"Informar variação de vento cruzado em rota.",
     maxStep:1
   },
   {
-    origem:"SBMO", rota:"SBMO -> SBRF", destino:"SBRF", nivelVoo:"280",
-    etd:"2025-04-02T13:50", eta:"2025-04-02T15:20", horaEntrega: new Date(Date.now() + 300000).toISOString(), // 5 minutos
-    tipoAeronave:"Asa Fixa",
-    observacoes:"Favor verificar formação de CB próximo à costa.",
-    maxStep:2
-  },
-  {
     origem:"SBGL", rota:"SBGL -> SBNF", destino:"SBNF", nivelVoo:"320",
-    etd:"2025-04-05T07:00", eta:"2025-04-05T08:40", horaEntrega:"2025-04-04T21:00",
+    etd:"2025-04-05T07:00", eta:"2025-04-05T08:40", 
+    horaEntrega:"2025-04-04T21:00",
     tipoAeronave:"Asa Móvel",
     observacoes:"Possível névoa matinal. Necessito de detalhes de RVR.",
     maxStep:3
@@ -102,32 +106,28 @@ const scheduledBriefings = [
 
 let tableView = false, compactMode = false;
 
+function sortBriefings() {
+  return [...scheduledBriefings].sort((a, b) => {
+    return new Date(a.horaEntrega) - new Date(b.horaEntrega);
+  });
+}
+
 function checkAlertCondition(b) {
-  if(b.maxStep >= 3) return false; // Já enviado
+  if(b.maxStep >= 3) return false;
   const now = new Date();
   const deadline = new Date(b.horaEntrega);
-  const diff = deadline - now;
-  return diff <= 600000 && diff > 0; // 10 minutos ou menos
+  return deadline - now <= 600000 && deadline > now;
 }
 
 function rowOrCardBgClass(m){
-  switch(m){
-    case 0: return "bg-step-0";
-    case 1: return "bg-step-1";
-    case 2: return "bg-step-2";
-    case 3: return "bg-step-3";
-    default: return "bg-light text-dark";
-  }
+  return `bg-step-${m}`;
 }
 
 function getStepLabel(i){ return STEP_LABELS[i] || "?"; }
 
 function toggleStep(idx,i){
   let c = scheduledBriefings[idx].maxStep;
-  if(i > c) c = i;
-  else if(i === c) c = Math.max(0, i-1);
-  else c = i;
-  scheduledBriefings[idx].maxStep = c;
+  scheduledBriefings[idx].maxStep = i > c ? i : Math.max(0, i-1);
   renderView();
 }
 
@@ -135,192 +135,106 @@ function renderStepButtons(idx, maxS, isTable){
   const g = document.createElement("div");
   g.role = "group";
   g.className = isTable ? "btn-group flex-nowrap" : "btn-group d-flex flex-wrap";
-  for(let i=0; i<STEP_LABELS.length; i++){
+  
+  STEP_LABELS.forEach((label, i) => {
     const inp = document.createElement("input");
     inp.type = "checkbox";
     inp.className = "btn-check";
     inp.id = `btn-${idx}-${i}`;
     inp.checked = (i <= maxS);
-    inp.addEventListener("change", ()=>toggleStep(idx,i));
+    inp.onchange = () => toggleStep(idx, i);
 
     const lbl = document.createElement("label");
-    lbl.className = "btn btn-secondary me-1"; 
-    if(isTable){
-      lbl.classList.add("table-step-btn");
-      lbl.title = STEP_LABELS[i];
-      lbl.textContent = "";
-    } else {
-      lbl.textContent = STEP_LABELS[i];
-    }
-    lbl.htmlFor = `btn-${idx}-${i}`;
+    lbl.className = `btn btn-secondary me-1 ${isTable ? "table-step-btn" : ""}`;
+    lbl.title = isTable ? label : "";
+    lbl.textContent = isTable ? "" : label;
+    lbl.htmlFor = inp.id;
 
-    g.appendChild(inp);
-    g.appendChild(lbl);
-  }
+    g.append(inp, lbl);
+  });
   return g;
 }
 
 function renderCards(container){
   const row = document.createElement("div");
   row.className = "row";
-  scheduledBriefings.forEach((b, idx)=>{
+  
+  sortBriefings().forEach((b, idx) => {
     const col = document.createElement("div");
     col.className = "col-sm-12 col-md-6 col-lg-4 mb-3";
 
     const card = document.createElement("div");
-    let cardClass = `card h-100 ${rowOrCardBgClass(b.maxStep)}`;
-    if(checkAlertCondition(b)) cardClass += " blink-alert";
-    card.className = cardClass;
+    card.className = `card h-100 ${rowOrCardBgClass(b.maxStep)} ${checkAlertCondition(b) ? "blink-alert" : ""}`;
 
-    const cb = document.createElement("div");
-    cb.className = "card-body";
-
-    const t = document.createElement("h4");
-    t.className = "card-title fw-bold text-uppercase mb-3";
-    t.textContent = `Briefing: ${b.origem} → ${b.destino}`;
-    cb.appendChild(t);
-
-    if(!compactMode){
-      const sub = document.createElement("h6");
-      sub.className = "card-subtitle mb-2";
-      sub.textContent = `Rota: ${b.rota}`;
-      cb.appendChild(sub);
-
-      const nv = document.createElement("p");
-      nv.textContent = `Nível: FL${b.nivelVoo}`;
-      cb.appendChild(nv);
-
-      const ta = document.createElement("p");
-      ta.textContent = `Tipo: ${b.tipoAeronave}`;
-      cb.appendChild(ta);
-
-      const e1 = document.createElement("p");
-      e1.textContent = `ETD: ${b.etd.replace("T"," ")}Z`;
-      cb.appendChild(e1);
-
-      const e2 = document.createElement("p");
-      e2.textContent = `ETA: ${b.eta.replace("T"," ")}Z`;
-      cb.appendChild(e2);
-
-      const en = document.createElement("p");
-      en.textContent = `Entrega: ${new Date(b.horaEntrega).toLocaleString()}`;
-      cb.appendChild(en);
-    }
-    const o = document.createElement("p");
-    o.textContent = `Obs: ${b.observacoes}`;
-    cb.appendChild(o);
-
-    const st = document.createElement("p");
-    st.innerHTML = `<strong>Passo:</strong> ${getStepLabel(b.maxStep)}`;
-    cb.appendChild(st);
-
-    cb.appendChild(renderStepButtons(idx,b.maxStep,false));
-    card.appendChild(cb);
-    col.appendChild(card);
-    row.appendChild(col);
+    const body = document.createElement("div");
+    body.className = "card-body";
+    body.innerHTML = `
+      <h4 class="card-title fw-bold text-uppercase mb-3">${b.origem} → ${b.destino}</h4>
+      ${!compactMode ? `
+        <h6 class="card-subtitle mb-2">Rota: ${b.rota}</h6>
+        <p>Nível: FL${b.nivelVoo}</p>
+        <p>Tipo: ${b.tipoAeronave}</p>
+        <p>ETD: ${new Date(b.etd).toLocaleString()}</p>
+        <p>ETA: ${new Date(b.eta).toLocaleString()}</p>
+        <p>Entrega: ${new Date(b.horaEntrega).toLocaleString()}</p>
+      ` : ""}
+      <p>Obs: ${b.observacoes}</p>
+      <p><strong>Passo:</strong> ${getStepLabel(b.maxStep)}</p>
+    `;
+    
+    body.append(renderStepButtons(idx, b.maxStep, false));
+    card.append(body);
+    col.append(card);
+    row.append(col);
   });
-  container.appendChild(row);
+  container.append(row);
 }
 
 function renderTable(container){
   const tbl = document.createElement("table");
   tbl.className = "table table-bordered";
-
-  const th = document.createElement("thead");
-  th.innerHTML = `<tr>
-    <th>Origem</th>
-    <th>Rota</th>
-    <th>Destino</th>
-    <th>Nível</th>
-    <th>ETD</th>
-    <th>ETA</th>
-    <th>Entrega</th>
-    <th>Aeronave</th>
-    <th>Obs</th>
-    <th>Passo</th>
-    <th></th>
-  </tr>`;
-  const tb = document.createElement("tbody");
-
-  scheduledBriefings.forEach((b, idx)=>{
-    const tr = document.createElement("tr");
-    let trClass = rowOrCardBgClass(b.maxStep);
-    if(checkAlertCondition(b)) trClass += " blink-alert";
-    tr.className = trClass;
-
-    const tdO = document.createElement("td");
-    tdO.textContent = b.origem;
-    tr.appendChild(tdO);
-
-    const tdR = document.createElement("td");
-    tdR.textContent = b.rota;
-    tr.appendChild(tdR);
-
-    const tdD = document.createElement("td");
-    tdD.textContent = b.destino;
-    tr.appendChild(tdD);
-
-    const tdN = document.createElement("td");
-    tdN.textContent = `FL${b.nivelVoo}`;
-    tr.appendChild(tdN);
-
-    const tdE1 = document.createElement("td");
-    tdE1.textContent = `${b.etd.replace("T"," ")}Z`;
-    tr.appendChild(tdE1);
-
-    const tdE2 = document.createElement("td");
-    tdE2.textContent = `${b.eta.replace("T"," ")}Z`;
-    tr.appendChild(tdE2);
-
-    const tdEn = document.createElement("td");
-    tdEn.textContent = `${new Date(b.horaEntrega).toLocaleString()}`;
-    tr.appendChild(tdEn);
-
-    const tdT = document.createElement("td");
-    tdT.textContent = b.tipoAeronave;
-    tr.appendChild(tdT);
-
-    const tdObs = document.createElement("td");
-    tdObs.textContent = b.observacoes;
-    tr.appendChild(tdObs);
-
-    const tdSt = document.createElement("td");
-    tdSt.textContent = getStepLabel(b.maxStep);
-    tr.appendChild(tdSt);
-
-    const tdBtns = document.createElement("td");
-    tdBtns.appendChild(renderStepButtons(idx,b.maxStep,true));
-    tr.appendChild(tdBtns);
-
-    tb.appendChild(tr);
-  });
-
-  tbl.appendChild(th);
-  tbl.appendChild(tb);
-  container.appendChild(tbl);
+  tbl.innerHTML = `
+    <thead>
+      <tr>
+        <th>Origem</th><th>Rota</th><th>Destino</th><th>Nível</th>
+        <th>ETD</th><th>ETA</th><th>Entrega</th><th>Aeronave</th>
+        <th>Obs</th><th>Passo</th><th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${sortBriefings().map((b, idx) => `
+        <tr class="${rowOrCardBgClass(b.maxStep)} ${checkAlertCondition(b) ? "blink-alert" : ""}">
+          <td>${b.origem}</td><td>${b.rota}</td><td>${b.destino}</td>
+          <td>FL${b.nivelVoo}</td><td>${new Date(b.etd).toLocaleString()}</td>
+          <td>${new Date(b.eta).toLocaleString()}</td>
+          <td>${new Date(b.horaEntrega).toLocaleString()}</td>
+          <td>${b.tipoAeronave}</td><td>${b.observacoes}</td>
+          <td>${getStepLabel(b.maxStep)}</td>
+          <td>${renderStepButtons(idx, b.maxStep, true).outerHTML}</td>
+        </tr>
+      `).join("")}
+    </tbody>
+  `;
+  container.append(tbl);
 }
 
 function renderView(){
-  const c = document.getElementById("briefingArea");
-  c.innerHTML = "";
-  document.getElementById("toggleCompactContainer").style.display = (tableView?"none":"block");
-  if(!tableView) renderCards(c);
-  else renderTable(c);
+  const container = document.getElementById("briefingArea");
+  container.innerHTML = "";
+  document.getElementById("toggleCompactContainer").style.display = tableView ? "none" : "block";
+  tableView ? renderTable(container) : renderCards(container);
 }
 
-const toggleView = document.getElementById("toggleView");
-toggleView.addEventListener("change",()=>{
-  tableView = toggleView.checked;
+document.getElementById("toggleView").addEventListener("change", e => {
+  tableView = e.target.checked;
   renderView();
 });
 
-const toggleCompact = document.getElementById("toggleCompact");
-toggleCompact.addEventListener("change",()=>{
-  compactMode = toggleCompact.checked;
+document.getElementById("toggleCompact").addEventListener("change", e => {
+  compactMode = e.target.checked;
   renderView();
 });
 
-// Atualiza a cada 10 segundos para verificar prazos
 setInterval(renderView, 10000);
 renderView();
 </script>
